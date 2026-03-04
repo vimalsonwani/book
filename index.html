@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" rel="stylesheet">
+<style>
+body{
+background:radial-gradient(circle at top,#1e293b,#020617);
+font-family: "Newsreader", serif;
+}
+
+.glass{
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(15px);
+border:1px solid rgba(255,255,255,0.1);
+}
+
+.card:hover{
+transform:translateY(-5px) scale(1.03);
+}
+
+.status-dot{
+width:10px;
+height:10px;
+border-radius:50%;
+}
+</style>
+</head>
+
+<body class="text-white min-h-screen p-6">
+
+<!-- TOP BAR -->
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+
+<div>
+<h1 id="greeting" class="text-2xl font-semibold"></h1>
+<p id="clock" class="text-sm opacity-70"></p>
+</div>
+
+<input id="searchInput"
+placeholder="Search bookmarks..."
+class="w-full md:w-1/3 p-3 rounded-xl glass outline-none">
+
+</div>
+
+<!-- CATEGORY TABS -->
+<div id="tabs" class="flex gap-3 mb-6 flex-wrap"></div>
+
+<!-- LINKS -->
+<div id="links" class="grid gap-4 md:grid-cols-3"></div>
+
+<script>
+
+const API_URL="https://script.google.com/macros/s/AKfycbwfLowMZm5IGZHFWC4vj-D1ni6BqaoWUuJs1U_jZ-1sTUKwUQiU8ZLiv-7kiteMUidV/exec";
+
+let allData=[];
+let activeCategory="All";
+let searchQuery="";
+
+function updateClock(){
+
+const now=new Date();
+const h=now.getHours();
+
+let greet="Good Evening";
+
+if(h<12) greet="Good Morning";
+else if(h<18) greet="Good Afternoon";
+
+document.getElementById("greeting").innerText=greet+", Vimal 👋";
+document.getElementById("clock").innerText=now.toLocaleString();
+
+}
+
+setInterval(updateClock,1000);
+updateClock();
+
+async function loadData(){
+
+const res=await fetch(API_URL);
+allData=await res.json();
+
+createTabs();
+renderLinks();
+
+}
+
+function createTabs(){
+
+const tabs=document.getElementById("tabs");
+tabs.innerHTML="";
+
+const categories=["All",...new Set(allData.map(i=>i.Category))];
+
+categories.forEach(cat=>{
+
+const btn=document.createElement("button");
+
+btn.innerText=cat;
+
+btn.className=`px-4 py-2 rounded-full glass ${cat===activeCategory?"bg-white/20":""}`;
+
+btn.onclick=()=>{
+
+activeCategory=cat;
+createTabs();
+renderLinks();
+
+};
+
+tabs.appendChild(btn);
+
+});
+
+}
+
+document.getElementById("searchInput").addEventListener("input",e=>{
+
+searchQuery=e.target.value.toLowerCase();
+renderLinks();
+
+});
+
+function renderLinks(){
+
+const container=document.getElementById("links");
+container.innerHTML="";
+
+let filtered=allData;
+
+if(activeCategory!=="All"){
+filtered=filtered.filter(i=>i.Category===activeCategory);
+}
+
+if(searchQuery){
+filtered=filtered.filter(i=>
+i.Name.toLowerCase().includes(searchQuery) ||
+i.URL.toLowerCase().includes(searchQuery)
+);
+}
+
+filtered.forEach((link,index)=>{
+
+const domain=new URL(link.URL).hostname;
+
+const a=document.createElement("a");
+
+a.href=link.URL;
+a.target="_blank";
+
+a.className="card glass p-4 rounded-xl flex items-center justify-between transition";
+
+a.innerHTML=`
+
+<div class="flex items-center gap-3">
+
+<img src="https://www.google.com/s2/favicons?sz=64&domain=${domain}" class="w-8 h-8 rounded">
+
+<div>
+<div class="font-semibold">${link.Name}</div>
+<div class="text-xs opacity-60">${domain}</div>
+</div>
+
+</div>
+
+<div id="status-${index}" class="status-dot bg-yellow-400"></div>
+
+`;
+
+container.appendChild(a);
+
+checkStatus(link.URL,index);
+
+});
+
+}
+
+async function checkStatus(url,index){
+
+const dot=document.getElementById("status-"+index);
+
+try{
+
+await fetch(url,{mode:"no-cors",cache:"no-store"});
+
+dot.className="status-dot bg-green-500";
+
+}catch{
+
+dot.className="status-dot bg-red-500";
+
+}
+
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>
